@@ -1,0 +1,2 @@
+insightface>=1.0.1
+onnxruntime>=1.26.0

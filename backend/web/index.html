@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Face Studio</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">AI Face Studio</p>
+        <h1>Face Replacement Console</h1>
+      </div>
+      <div class="health">
+        <span id="healthDot" class="dot"></span>
+        <span id="healthText">Checking backend</span>
+      </div>
+    </header>
+
+    <div class="mode-tabs" role="tablist" aria-label="Swap workflow">
+      <button class="mode active" data-mode="IMAGE" type="button">Photo Face Swap</button>
+      <button class="mode" data-mode="MULTI" type="button">Multiple Face Swap</button>
+      <button class="mode" data-mode="VIDEO" type="button">Video Face Swap</button>
+      <button class="mode" data-mode="GIF" type="button">GIF Face Swap</button>
+    </div>
+
+    <main class="workspace">
+      <section class="tool">
+        <div class="upload-grid">
+          <label class="drop" id="sourceDrop">
+            <input id="sourceInput" type="file" accept="image/jpeg,image/png,image/webp">
+            <span class="drop-title">Original media</span>
+            <span id="sourceName" class="drop-meta">No file selected</span>
+          </label>
+
+          <label class="drop" id="faceDrop">
+            <input id="faceInput" type="file" accept="image/jpeg,image/png,image/webp">
+            <span class="drop-title">Face image</span>
+            <span id="faceName" class="drop-meta">No file selected</span>
+          </label>
+        </div>
+
+        <div id="multiFacePanel" class="multi-face-panel" hidden>
+          <div class="panel-head">
+            <strong>Multi-face mapping</strong>
+            <button id="addReplacementButton" class="small-button" type="button">Add faces</button>
+            <input id="extraFaceInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+          </div>
+          <div id="faceMappingRows" class="face-mapping-rows"></div>
+        </div>
+
+        <div class="settings">
+          <label>
+            Quality
+            <select id="qualityInput">
+              <option value="HIGH" selected>High</option>
+              <option value="STANDARD">Standard</option>
+              <option value="ULTRA">Ultra</option>
+            </select>
+          </label>
+
+          <label id="imageFormatField">
+            Image format
+            <select id="imageFormatInput">
+              <option value="JPG" selected>JPG</option>
+              <option value="PNG">PNG</option>
+              <option value="WEBP">WEBP</option>
+            </select>
+          </label>
+
+          <label id="videoResolutionField" hidden>
+            Resolution
+            <select id="videoResolutionInput">
+              <option value="P1080" selected>1080P</option>
+              <option value="P720">720P</option>
+              <option value="P4K">4K</option>
+            </select>
+          </label>
+
+          <label id="fpsField" hidden>
+            FPS
+            <select id="fpsInput">
+              <option value="30" selected>30</option>
+              <option value="24">24</option>
+              <option value="60">60</option>
+            </select>
+          </label>
+
+          <label id="trimStartField" hidden>
+            Start time
+            <input id="trimStartInput" type="number" min="0" step="0.1" value="0">
+          </label>
+
+          <label id="trimEndField" hidden>
+            End time
+            <input id="trimEndInput" type="number" min="0" step="0.1" value="0">
+          </label>
+        </div>
+
+        <div class="switches">
+          <label id="multiFaceSwitch"><input id="multiFaceInput" type="checkbox"> Multi-face mode</label>
+          <label><input id="visibleWatermarkInput" type="checkbox" checked> Visible label</label>
+          <label><input id="metadataWatermarkInput" type="checkbox" checked> Metadata watermark</label>
+        </div>
+
+        <label class="token">
+          Backend token
+          <input id="tokenInput" type="password" autocomplete="off" placeholder="Optional">
+        </label>
+
+        <label class="consent">
+          <input id="consentInput" type="checkbox">
+          <span>I own or have permission to use this media and face image, and I will not use the result for impersonation, harassment, fraud, or non-consensual content.</span>
+        </label>
+
+        <div class="actions">
+          <button id="startButton" class="primary" type="button">Start processing</button>
+          <button id="cancelButton" class="danger" type="button" disabled>Terminate</button>
+          <a id="downloadLink" class="secondary disabled" href="#" download>Download</a>
+        </div>
+
+        <div class="progress-wrap">
+          <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+          <div class="progress-copy">
+            <span id="progressValue">0%</span>
+            <span id="statusText">Ready</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="preview">
+        <div class="preview-grid">
+          <div class="preview-box">
+            <div class="preview-head">Original</div>
+            <div id="sourcePreview" class="media-slot"></div>
+          </div>
+          <div class="preview-box face-preview-box">
+            <div class="preview-head">Face</div>
+            <div id="facePreview" class="media-slot"></div>
+          </div>
+          <div class="preview-box result-box">
+            <div class="preview-head">Generated</div>
+            <div id="resultPreview" class="media-slot"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
