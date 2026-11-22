@@ -82,3 +82,10 @@ The backend is designed to run as a single lightweight Render Free web service. 
 - Jobs waiting for a processing slot remain cancellable.
 - Uploaded source and donor-face files are removed after processing finishes or fails. Generated result files remain available until the instance restarts or storage is otherwise cleared.
 - Failed jobs return a generic client-facing error instead of exposing internal exception details.
+
+## Backend security validation (Phase 4)
+
+- Uploads are streamed to disk with per-media size limits and exclusive file creation to avoid overwriting existing files.
+- Server-side validation checks decoded file formats rather than trusting filenames or client MIME values. Image uploads are limited to supported formats and 40 megapixels. Video uploads must contain an MP4 `ftyp` signature.
+- Duplicate project IDs are rejected while their storage directory exists.
+- These checks are defense-in-depth, not a substitute for authentication, rate limiting, isolated storage, and durable ownership controls.
