@@ -266,10 +266,24 @@ def run_processing_job(
             )
         update_job(project_id, status="completed", progress=100, status_message="Completed", result_path=output_path)
     except ProcessingCanceled:
+        try:
+            output_path.unlink(missing_ok=True)
+        except OSError:
+            pass
         update_job(project_id, status="canceled", status_message="Canceled")
     except Exception as exc:
         logger.exception("Processing job %s failed (%s)", project_id, type(exc).__name__)
-        update_job(project_id, status="failed", progress=0, status_message="Processing failed", error="Processing failed. Please retry.")
+        if isinstance(exc, MemoryError):
+            client_error = "This media exceeded the available processing memory. Try a smaller image or shorter video."
+        elif isinstance(exc, ValueError) and ("model is unavailable" in str(exc).lower() or "requires the neural" in str(exc).lower()):
+            client_error = "The AI face-swap model is not available on the server. Please try again later."
+        else:
+            client_error = "Processing failed. Try a smaller file or retry later."
+        try:
+            output_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        update_job(project_id, status="failed", progress=0, status_message="Processing failed", error=client_error)
     finally:
         for path in [source_path, *face_paths]:
             try:

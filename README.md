@@ -98,3 +98,8 @@ The backend is designed to run as a single lightweight Render Free web service. 
 ### Memory and startup diagnostics
 
 The `/health` endpoint reports best-effort process RSS and system available memory (Linux `/proc` where available), processor model availability, job state counts, and configured queue/concurrency. These readings are informational and do not reliably indicate the container memory limit or guarantee model loading fits. Consider restricting access to health diagnostics if deployment details should not be public.
+
+
+### Processing failure handling
+
+Processing errors now provide safe, actionable client messages for memory exhaustion and missing neural models while keeping exception details in server logs. Failed or canceled jobs attempt to remove partial output files. Users should reduce input size or duration when the service runs out of available memory. This behavior has not yet been tested on Render.
