@@ -93,17 +93,25 @@ class CloudProcessingClient @Inject constructor(
         onProgress: suspend (Int, String) -> Unit
     ): ProcessingJobResponse {
         var response = initial
+        var elapsedMs = 0L
         repeat(MAX_POLL_ATTEMPTS) {
             when (response.status.lowercase()) {
                 "completed" -> return response
                 "failed" -> error(response.statusMessage)
                 "canceled", "cancelled" -> error("Cloud processing was canceled.")
             }
-            delay(POLL_INTERVAL_MS)
+            delay(pollDelayForElapsed(elapsedMs))
+            elapsedMs += pollDelayForElapsed(elapsedMs)
             response = processingApi.getProcessingJob(response.projectId)
             onProgress(response.progress, response.statusMessage)
         }
         error("Cloud processing timed out.")
+    }
+
+    private fun pollDelayForElapsed(elapsedMs: Long): Long = when {
+        elapsedMs < 20_000L -> 2_000L
+        elapsedMs < 80_000L -> 4_000L
+        else -> 8_000L
     }
 
     private fun requestBody(project: ProjectEntity, replacementFaceCount: Int): RequestBody {
@@ -168,8 +176,25 @@ class CloudProcessingClient @Inject constructor(
             val body = requireNotNull(response.body) { "Backend returned an empty result." }
             val outputDir = File(context.cacheDir, GENERATED_DIR).apply { mkdirs() }
             val outputFile = File(outputDir, "cloud_generated_${project.projectId}.${project.cloudOutputExtension()}")
+            val maxBytes = when (project.mediaType) {
+                MediaType.IMAGE -> MAX_IMAGE_DOWNLOAD_BYTES
+                MediaType.GIF -> MAX_GIF_DOWNLOAD_BYTES
+                MediaType.VIDEO -> MAX_VIDEO_DOWNLOAD_BYTES
+            }
+            val declaredLength = body.contentLength()
+            require(declaredLength <= maxBytes || declaredLength < 0) { "Result file exceeds the download size limit." }
+            var copied = 0L
             body.byteStream().use { input ->
-                outputFile.outputStream().use { output -> input.copyTo(output) }
+                outputFile.outputStream().use { output ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        copied += count
+                        require(copied <= maxBytes) { "Result file exceeds the download size limit." }
+                        output.write(buffer, 0, count)
+                    }
+                }
             }
             return outputFile
         }
@@ -194,7 +219,9 @@ class CloudProcessingClient @Inject constructor(
     private companion object {
         private const val GENERATED_DIR = "generated"
         private const val MAX_POLL_ATTEMPTS = 1_800
-        private const val POLL_INTERVAL_MS = 2_000L
         private const val MAX_REPLACEMENT_FACES = 12
+        private const val MAX_IMAGE_DOWNLOAD_BYTES = 50L * 1024 * 1024
+        private const val MAX_GIF_DOWNLOAD_BYTES = 200L * 1024 * 1024
+        private const val MAX_VIDEO_DOWNLOAD_BYTES = 500L * 1024 * 1024
     }
 }
