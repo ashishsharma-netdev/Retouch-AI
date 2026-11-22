@@ -112,6 +112,17 @@ h1 {
   padding: 16px;
 }
 
+.model-notice {
+  margin: 0 auto 14px;
+  padding: 12px 14px;
+  border: 1px solid #e5b65c;
+  border-radius: 8px;
+  background: #fff8e8;
+  color: #704b0b;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .mode-tabs {
   display: flex;
   flex-wrap: wrap;
