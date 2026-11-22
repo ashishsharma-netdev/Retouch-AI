@@ -85,3 +85,11 @@ The backend is designed to run as a single lightweight Render Free web service. 
 - Jobs waiting for a processing slot remain cancellable.
 - Uploaded source and donor-face files are removed after processing finishes or fails. Generated result files remain available until the instance restarts or storage is otherwise cleared.
 - Failed jobs return a generic client-facing error instead of exposing internal exception details.
+
+
+### Render Free Python and CPU dependency compatibility
+
+- The backend runtime is pinned to Python 3.11.11 via `.python-version`.
+- Backend dependencies are version-pinned, including CPU ONNX Runtime and OpenCV headless, to reduce surprise upgrades and avoid mixing OpenCV desktop and headless wheel variants.
+- These pins are intended to reduce dependency/runtime instability on Render Free; they do not guarantee model loading will fit available memory.
+- No processing benchmark or deployment validation was performed as part of this change.
