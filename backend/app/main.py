@@ -9,7 +9,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from threading import Lock
+from threading import Lock, Semaphore
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,6 +43,9 @@ app.add_middleware(
 )
 processor = ImageFaceProcessor()
 jobs_lock = Lock()
+MAX_CONCURRENT_JOBS = max(1, int(os.getenv('AI_FACE_MAX_CONCURRENT_JOBS', '1')))
+MAX_QUEUED_JOBS = max(MAX_CONCURRENT_JOBS, int(os.getenv('AI_FACE_MAX_QUEUED_JOBS', '3')))
+processing_slots = Semaphore(MAX_CONCURRENT_JOBS)
 
 
 @dataclass
@@ -85,6 +88,11 @@ async def create_processing_job(
 
     if not payload.userOwnershipDeclared or not payload.termsAccepted:
         raise HTTPException(status_code=400, detail="Ownership declaration and terms acceptance are required.")
+    with jobs_lock:
+        pending_jobs = sum(1 for job in jobs.values() if job.status in {'queued', 'processing'})
+    if pending_jobs >= MAX_QUEUED_JOBS:
+        raise HTTPException(status_code=503, detail='The processing queue is full. Please try again shortly.')
+
     project_id = sanitize_project_id(payload.projectId)
     project_dir = STORAGE_ROOT / "projects" / project_id
     project_dir.mkdir(parents=True, exist_ok=True)
@@ -110,7 +118,7 @@ async def create_processing_job(
         )
 
     output_path = project_dir / output_filename(payload.mediaType)
-    state = JobState(project_id=project_id, status="processing", progress=10, status_message="Queued")
+    state = JobState(project_id=project_id, status="queued", progress=10, status_message="Waiting for available processing slot")
     with jobs_lock:
         jobs[project_id] = state
 
@@ -195,9 +203,14 @@ def run_processing_job(
     output_path: Path,
     payload: ProcessingJobRequest,
 ) -> None:
+    acquired = False
     try:
-        update_job(project_id, progress=20, status_message="Uploading Files")
-        time.sleep(0.15)
+        update_job(project_id, status="queued", progress=10, status_message="Waiting for available processing slot")
+        processing_slots.acquire()
+        acquired = True
+        if is_job_canceled(project_id):
+            raise ProcessingCanceled("Processing canceled.")
+        update_job(project_id, status="processing", progress=20, status_message="Preparing files")
         update_job(project_id, progress=28, status_message="Preparing AI model")
         options = ProcessingOptions(
             visible_watermark=payload.visibleWatermark,
@@ -250,7 +263,15 @@ def run_processing_job(
     except ProcessingCanceled:
         update_job(project_id, status="canceled", status_message="Canceled")
     except Exception as exc:
-        update_job(project_id, status="failed", progress=0, status_message="Processing failed", error=str(exc))
+        update_job(project_id, status="failed", progress=0, status_message="Processing failed", error="Processing failed. Please retry.")
+    finally:
+        for path in [source_path, *face_paths]:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        if acquired:
+            processing_slots.release()
 
 
 def response_for(state: JobState, http_request: Request) -> ProcessingJobResponse:
