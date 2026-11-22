@@ -180,7 +180,7 @@ class ImageFaceProcessor:
             return False
 
         on_progress(36, "Analyzing faces")
-        source = limit_bgr_edge(source, 2048)
+        source = limit_bgr_edge(source, max_image_processing_edge())
         replacement = limit_bgr_edge(replacement, 1024)
         source_box = self._detect_face_box_bgr(source)
         replacement_box = self._detect_face_box_bgr(replacement)
@@ -792,18 +792,34 @@ def runtime_backend_root() -> Path:
 
 
 def onnx_providers() -> list[str]:
-    configured = os.getenv("AI_FACE_ONNX_PROVIDERS")
-    if configured:
-        return [item.strip() for item in configured.split(",") if item.strip()]
+    """Select only runtime-supported providers and retain CPU as a safe fallback."""
     try:
         import onnxruntime  # type: ignore
-
-        available = onnxruntime.get_available_providers()
-        if "CUDAExecutionProvider" in available:
-            return ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        available = set(onnxruntime.get_available_providers())
     except Exception:
-        pass
-    return ["CPUExecutionProvider"]
+        return ["CPUExecutionProvider"]
+
+    configured = os.getenv("AI_FACE_ONNX_PROVIDERS", "").strip()
+    if configured:
+        requested = [item.strip() for item in configured.split(",") if item.strip()]
+        selected = [item for item in requested if item in available]
+    elif "CUDAExecutionProvider" in available:
+        selected = ["CUDAExecutionProvider"]
+    else:
+        selected = []
+
+    if "CPUExecutionProvider" in available and "CPUExecutionProvider" not in selected:
+        selected.append("CPUExecutionProvider")
+    return selected or ["CPUExecutionProvider"]
+
+
+def max_image_processing_edge() -> int:
+    """Bound image working dimensions to reduce peak RAM use."""
+    try:
+        configured = int(os.getenv("AI_FACE_MAX_IMAGE_EDGE", "2048"))
+    except ValueError:
+        configured = 2048
+    return max(512, min(4096, configured))
 
 
 def largest_insightface_face(faces):
