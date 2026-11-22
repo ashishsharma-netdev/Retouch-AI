@@ -82,3 +82,10 @@ The backend is designed to run as a single lightweight Render Free web service. 
 - Jobs waiting for a processing slot remain cancellable.
 - Uploaded source and donor-face files are removed after processing finishes or fails. Generated result files remain available until the instance restarts or storage is otherwise cleared.
 - Failed jobs return a generic client-facing error instead of exposing internal exception details.
+
+## Phase 5 — model optimization settings
+
+- ONNX provider selection filters requested providers against providers actually installed in the runtime and keeps CPU as a fallback.
+- Image processing working edge is configurable through `AI_FACE_MAX_IMAGE_EDGE` (default 2048, allowed 512–4096) to help control peak memory use.
+- Existing detector input size remains configurable through `AI_FACE_DETECT_SIZE`.
+- GPU acceleration depends on the deployment runtime actually having compatible ONNX Runtime GPU providers and drivers; Render Free is typically CPU-only.
