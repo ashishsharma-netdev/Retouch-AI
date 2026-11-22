@@ -93,3 +93,8 @@ The backend is designed to run as a single lightweight Render Free web service. 
 - Backend dependencies are version-pinned, including CPU ONNX Runtime and OpenCV headless, to reduce surprise upgrades and avoid mixing OpenCV desktop and headless wheel variants.
 - These pins are intended to reduce dependency/runtime instability on Render Free; they do not guarantee model loading will fit available memory.
 - No processing benchmark or deployment validation was performed as part of this change.
+
+
+### Memory and startup diagnostics
+
+The `/health` endpoint reports best-effort process RSS and system available memory (Linux `/proc` where available), processor model availability, job state counts, and configured queue/concurrency. These readings are informational and do not reliably indicate the container memory limit or guarantee model loading fits. Consider restricting access to health diagnostics if deployment details should not be public.

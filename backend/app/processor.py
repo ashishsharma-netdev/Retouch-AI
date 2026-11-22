@@ -46,7 +46,29 @@ class DetectedSourceFace:
     preview_data_url: str
 
 
-class ImageFaceProcessor:
+
+
+def process_memory_snapshot() -> dict[str, int | None]:
+    """Best-effort memory readings using Linux procfs; no extra package required."""
+    rss_kb = None
+    available_kb = None
+    try:
+        for line in Path("/proc/self/status").read_text(encoding="utf-8").splitlines():
+            if line.startswith("VmRSS:"):
+                rss_kb = int(line.split()[1])
+                break
+    except (OSError, ValueError, IndexError):
+        pass
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
+            if line.startswith("MemAvailable:"):
+                available_kb = int(line.split()[1])
+                break
+    except (OSError, ValueError, IndexError):
+        pass
+    return {"processRssKb": rss_kb, "systemAvailableKb": available_kb}
+
+\nclass ImageFaceProcessor:
     """Image engine used by the backend.
 
     If an InsightFace/ONNX swapper model is installed, this class uses the
