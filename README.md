@@ -85,3 +85,8 @@ The backend is designed to run as a single lightweight Render Free web service. 
 - Jobs waiting for a processing slot remain cancellable.
 - Uploaded source and donor-face files are removed after processing finishes or fails. Generated result files remain available until the instance restarts or storage is otherwise cleared.
 - Failed jobs return a generic client-facing error instead of exposing internal exception details.
+
+
+### Phase 13: Memory and startup diagnostics
+
+The `/health` endpoint includes best-effort memory readings (Linux `/proc` when available), model availability without triggering provisioning, and counts of jobs by state plus queue/concurrency settings. These readings may be unavailable on non-Linux hosts and do not represent a reliable container memory limit or guarantee that model initialization fits Render Free. Avoid sharing this endpoint publicly if deployment details are considered sensitive.
