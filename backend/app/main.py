@@ -34,11 +34,12 @@ STORAGE_ROOT = Path(os.getenv("AI_FACE_STORAGE", DEFAULT_STORAGE_ROOT))
 WEB_ROOT = Path(os.getenv("AI_FACE_WEB_ROOT", BACKEND_ROOT / "web"))
 
 app = FastAPI(title="AI Face Replacement Backend", version="1.0.0")
+cors_origins = [origin.strip() for origin in os.getenv("AI_FACE_CORS_ORIGINS", "").split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=cors_origins,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 processor = ImageFaceProcessor()
 jobs_lock = Lock()
