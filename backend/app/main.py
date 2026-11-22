@@ -97,18 +97,25 @@ async def create_processing_job(
         raise HTTPException(status_code=503, detail='The processing queue is full. Please try again shortly.')
 
     project_id = sanitize_project_id(payload.projectId)
+    with jobs_lock:
+        if project_id in jobs:
+            raise HTTPException(status_code=409, detail="Project id already exists.")
     project_dir = STORAGE_ROOT / "projects" / project_id
-    project_dir.mkdir(parents=True, exist_ok=True)
+    if project_dir.exists():
+        raise HTTPException(status_code=409, detail="Project id already exists.")
+    project_dir.mkdir(parents=True, exist_ok=False)
 
     source_path = await save_upload(
         source,
         project_dir / safe_filename(source.filename or default_source_name(payload.mediaType)),
         max_bytes=max_source_bytes(payload.mediaType),
+        expected_kind=payload.mediaType.value,
     )
     face_path = await save_upload(
         face,
         project_dir / safe_filename(face.filename or "face.jpg"),
         max_bytes=MAX_IMAGE_BYTES,
+        expected_kind="IMAGE",
     )
     face_paths = [face_path]
     for index, extra_face in enumerate(faces[: MAX_REPLACEMENT_FACES - 1], start=1):
@@ -117,6 +124,7 @@ async def create_processing_job(
                 extra_face,
                 project_dir / f"face_{index}_{safe_filename(extra_face.filename or 'face.jpg')}",
                 max_bytes=MAX_IMAGE_BYTES,
+                expected_kind="IMAGE",
             )
         )
 
@@ -141,6 +149,7 @@ async def detect_source_faces(
         source,
         tmp_dir / safe_filename(source.filename or default_source_name(media_type)),
         max_bytes=max_source_bytes(media_type),
+        expected_kind=media_type.value,
     )
     try:
         faces = processor.detect_source_faces(
@@ -346,19 +355,50 @@ def update_job(
             state.error = error
 
 
-async def save_upload(upload: UploadFile, destination: Path, max_bytes: int) -> Path:
+async def save_upload(upload: UploadFile, destination: Path, max_bytes: int, expected_kind: str) -> Path:
     destination.parent.mkdir(parents=True, exist_ok=True)
     total = 0
-    with destination.open("wb") as output:
-        while True:
-            chunk = await upload.read(1024 * 1024)
-            if not chunk:
-                break
-            total += len(chunk)
-            if total > max_bytes:
-                raise HTTPException(status_code=413, detail="Upload exceeds the supported size limit.")
-            output.write(chunk)
-    return destination
+    try:
+        with destination.open("xb") as output:
+            while True:
+                chunk = await upload.read(1024 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > max_bytes:
+                    raise HTTPException(status_code=413, detail="Upload exceeds the supported size limit.")
+                output.write(chunk)
+        validate_upload_content(destination, expected_kind)
+        return destination
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
+
+
+def validate_upload_content(path: Path, expected_kind: str) -> None:
+    """Validate file content instead of trusting filename or MIME."""
+    if expected_kind in {"IMAGE", "GIF"}:
+        try:
+            from PIL import Image
+            with Image.open(path) as image:
+                allowed = {"JPEG", "PNG", "WEBP"} if expected_kind == "IMAGE" else {"GIF"}
+                if image.format not in allowed:
+                    raise HTTPException(status_code=415, detail="Unsupported image file content.")
+                if image.width * image.height > 40_000_000:
+                    raise HTTPException(status_code=413, detail="Image dimensions exceed the supported limit.")
+                image.verify()
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=415, detail="Invalid or unsupported image file.") from exc
+        return
+    if expected_kind == "VIDEO":
+        with path.open("rb") as handle:
+            header = handle.read(64)
+        if len(header) < 12 or header[4:8] != b"ftyp":
+            raise HTTPException(status_code=415, detail="Unsupported video file content.")
+        return
+    raise HTTPException(status_code=400, detail="Unsupported upload type.")
 
 
 def max_source_bytes(media_type: MediaType) -> int:
