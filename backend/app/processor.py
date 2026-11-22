@@ -681,7 +681,8 @@ class NeuralFaceSwapProcessor:
                     allowed_modules=["detection", "recognition"],
                     providers=providers,
                 )
-                det_size = max(320, min(1024, int(os.getenv("AI_FACE_DETECT_SIZE", "640"))))\n                analyser.prepare(ctx_id=-1, det_thresh=0.35, det_size=(det_size, det_size))
+                det_size = max(320, min(1024, int(os.getenv("AI_FACE_DETECT_SIZE", "640"))))
+                analyser.prepare(ctx_id=-1, det_thresh=0.35, det_size=(det_size, det_size))
                 swapper = get_model(str(self.model_path), providers=providers)
                 if swapper is None:
                     raise ValueError(f"Face swap model could not be recognized: {self.model_path}")
