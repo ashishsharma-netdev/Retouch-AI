@@ -85,3 +85,14 @@ The backend is designed to run as a single lightweight Render Free web service. 
 - Jobs waiting for a processing slot remain cancellable.
 - Uploaded source and donor-face files are removed after processing finishes or fails. Generated result files remain available until the instance restarts or storage is otherwise cleared.
 - Failed jobs return a generic client-facing error instead of exposing internal exception details.
+
+
+### Optional swapper model provisioning (operator controlled)
+
+- The backend can provision the swapper ONNX file from an operator-controlled HTTPS URL using `AI_FACE_SWAPPER_MODEL_URL` and `AI_FACE_SWAPPER_MODEL_SHA256`.
+- The checksum is mandatory and verified before the file is atomically moved into the model cache.
+- The default download cap is 350 MB (`AI_FACE_MODEL_DOWNLOAD_MAX_MB`); timeout defaults to 30 seconds (`AI_FACE_MODEL_DOWNLOAD_TIMEOUT`).
+- Provisioning is disabled unless both URL and checksum are set. Health polling does not trigger downloads.
+- This mechanism provisions only the swapper model; InsightFace detector-pack availability is a separate requirement.
+- **Render Free caution:** downloading and loading the swapper plus InsightFace detector models may exceed the Free instance memory budget. This option is not a claim that neural processing is viable on Render Free. Test memory and cold starts before enabling it.
+- Only use model files and hosting sources you are authorized to distribute and use.
