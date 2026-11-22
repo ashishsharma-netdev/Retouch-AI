@@ -288,13 +288,19 @@ class ImageFaceProcessor:
     def _detect_face_box_bgr(self, image) -> tuple[int, int, int, int]:
         import cv2  # type: ignore
 
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        gray = cv2.equalizeHist(gray)
-        cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        detector = cv2.CascadeClassifier(cascade_path)
-        faces = detector.detectMultiScale(gray, scaleFactor=1.06, minNeighbors=5, minSize=(40, 40))
+        size = (image.shape[1], image.shape[0])
+        try:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.equalizeHist(gray)
+            cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+            detector = cv2.CascadeClassifier(cascade_path)
+            if detector.empty():
+                return self._center_face_box(size)
+            faces = detector.detectMultiScale(gray, scaleFactor=1.06, minNeighbors=5, minSize=(40, 40))
+        except (AttributeError, cv2.error, OSError):
+            return self._center_face_box(size)
         if len(faces) == 0:
-            return self._center_face_box((image.shape[1], image.shape[0]))
+            return self._center_face_box(size)
         x, y, width, height = max(faces, key=lambda item: item[2] * item[3])
         return self._expand_box(
             (int(x), int(y), int(x + width), int(y + height)),
@@ -312,9 +318,14 @@ class ImageFaceProcessor:
 
         rgb = image.convert("RGB")
         gray = cv2.cvtColor(np.array(rgb), cv2.COLOR_RGB2GRAY)
-        cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        detector = cv2.CascadeClassifier(cascade_path)
-        faces = detector.detectMultiScale(gray, scaleFactor=1.08, minNeighbors=5, minSize=(48, 48))
+        try:
+            cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+            detector = cv2.CascadeClassifier(cascade_path)
+            if detector.empty():
+                return None
+            faces = detector.detectMultiScale(gray, scaleFactor=1.08, minNeighbors=5, minSize=(48, 48))
+        except (AttributeError, cv2.error, OSError):
+            return None
         if len(faces) == 0:
             return None
         x, y, width, height = max(faces, key=lambda item: item[2] * item[3])
