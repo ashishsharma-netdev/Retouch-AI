@@ -444,6 +444,10 @@ class NeuralFaceSwapProcessor:
         if input_fps <= 1 or input_fps > 120:
             input_fps = float(options.fps or 30)
         frame_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        max_video_seconds = max(1, int(os.getenv("AI_FACE_MAX_VIDEO_SECONDS", "120")))
+        if frame_count > 0 and frame_count / input_fps > max_video_seconds:
+            capture.release()
+            raise ValueError(f"Video exceeds the {max_video_seconds}-second processing limit. Trim the video and retry.")
         start_frame = frame_index_for_ms(options.video_trim_start_ms, input_fps)
         end_frame = frame_index_for_ms(options.video_trim_end_ms, input_fps) if options.video_trim_end_ms > 0 else frame_count
         if frame_count > 0:
@@ -564,6 +568,10 @@ class NeuralFaceSwapProcessor:
             raise ValueError("Source GIF could not be opened.") from exc
 
         frame_count = int(getattr(source_image, "n_frames", 1) or 1)
+        max_gif_frames = max(1, int(os.getenv("AI_FACE_MAX_GIF_FRAMES", "120")))
+        if frame_count > max_gif_frames:
+            source_image.close()
+            raise ValueError(f"GIF exceeds the {max_gif_frames}-frame processing limit. Shorten the GIF and retry.")
         loop = int(source_image.info.get("loop", 0) or 0)
         default_duration = int(source_image.info.get("duration", 80) or 80)
         processed_frames: list[Image.Image] = []
@@ -673,7 +681,7 @@ class NeuralFaceSwapProcessor:
                     allowed_modules=["detection", "recognition"],
                     providers=providers,
                 )
-                analyser.prepare(ctx_id=-1, det_thresh=0.35, det_size=(640, 640))
+                det_size = max(320, min(1024, int(os.getenv("AI_FACE_DETECT_SIZE", "640"))))\n                analyser.prepare(ctx_id=-1, det_thresh=0.35, det_size=(det_size, det_size))
                 swapper = get_model(str(self.model_path), providers=providers)
                 if swapper is None:
                     raise ValueError(f"Face swap model could not be recognized: {self.model_path}")
