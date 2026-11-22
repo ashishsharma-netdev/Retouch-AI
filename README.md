@@ -63,3 +63,14 @@ python -m venv .venv
 ```
 
 The backend lives in [backend](backend). Its image and video processors use InsightFace/ONNX when models are installed; video renders frame-by-frame to MP4. The local video path is visual-only until ffmpeg-based audio passthrough is added.
+
+
+## Render Free Plan Notes
+
+The backend is designed to run as a single lightweight Render Free web service. Render Free services sleep after inactivity and their local filesystem is ephemeral. Therefore, remote job state and uploaded/result files are not guaranteed to survive a restart, redeploy, or spin-down. Avoid treating the backend's local storage as permanent storage.
+
+- Expect a cold-start delay when the service wakes.
+- Avoid deploying a separate worker or Redis requirement on the Free plan.
+- Keep processing requests modest; large video jobs may exceed free-instance memory or CPU limits.
+- Set `AI_FACE_BACKEND_TOKEN` in Render environment variables to enable API token validation.
+- Use a real HTTPS Render URL in the release build configuration before publishing.
