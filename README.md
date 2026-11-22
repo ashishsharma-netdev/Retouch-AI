@@ -103,3 +103,26 @@ The `/health` endpoint reports best-effort process RSS and system available memo
 ### Processing failure handling
 
 Processing errors now provide safe, actionable client messages for memory exhaustion and missing neural models while keeping exception details in server logs. Failed or canceled jobs attempt to remove partial output files. Users should reduce input size or duration when the service runs out of available memory. This behavior has not yet been tested on Render.
+
+
+### Backend upload validation (Phase 4)
+
+- Uploads are streamed with per-media size limits and exclusive file creation.
+- Decoded image content is checked against supported formats, with a 40-megapixel limit. Video uploads must contain an MP4 `ftyp` signature.
+- Duplicate project IDs are rejected when registered or when storage already exists.
+- These are defense-in-depth safeguards, not substitutes for authentication, rate limiting, and durable ownership isolation.
+
+### AI model optimization (Phase 5)
+
+- ONNX providers are filtered against providers available in the runtime, with CPU fallback.
+- `AI_FACE_MAX_IMAGE_EDGE` controls image working size (default 2048, bounded 512–4096).
+- GPU acceleration depends on runtime providers and drivers; Render Free is typically CPU-only.
+
+### Optional swapper model provisioning (Phase 11)
+
+- Operator-controlled HTTPS download is available via `AI_FACE_SWAPPER_MODEL_URL` and `AI_FACE_SWAPPER_MODEL_SHA256`.
+- SHA-256 is verified before atomic placement in the model cache. Default cap 350 MB and timeout 30 seconds.
+- Provisioning is opt-in and health polling does not initiate downloads.
+- This provisions only the swapper model; InsightFace detector models remain a separate dependency.
+- Render Free memory constraints may prevent model loading; test before enabling.
+- Use only model files and hosting sources you are authorized to distribute.
