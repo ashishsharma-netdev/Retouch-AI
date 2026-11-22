@@ -78,8 +78,13 @@ class ImageFaceProcessor:
                 return
             except ProcessingCanceled:
                 raise
-            except Exception as exc:
-                on_progress(34, f"Neural swap failed; running enhanced blend ({exc})")
+            except Exception:
+                if os.getenv("AI_FACE_ALLOW_COMPOSITOR_FALLBACK", "false").lower() not in {"1", "true", "yes", "on"}:
+                    raise
+                on_progress(34, "Neural swap failed; compositor fallback is explicitly enabled")
+
+        elif os.getenv("AI_FACE_ALLOW_COMPOSITOR_FALLBACK", "false").lower() not in {"1", "true", "yes", "on"}:
+            raise ValueError("AI swapper model is unavailable. Configure the model before processing; compositor fallback is disabled.")
 
         check_cancel(should_cancel)
         self._process_enhanced_composite(source_path, face_path, output_path, options, on_progress)
@@ -394,7 +399,8 @@ class NeuralFaceSwapProcessor:
         if source is None:
             raise ValueError("Image could not be decoded for neural processing.")
 
-        source = limit_bgr_edge(source, 2048)
+        max_image_edge = max(512, min(1536, int(os.getenv("AI_FACE_MAX_IMAGE_EDGE", "1024"))))
+        source = limit_bgr_edge(source, max_image_edge)
 
         on_progress(48, "Detecting face geometry")
         check_cancel(should_cancel)
@@ -692,7 +698,7 @@ class NeuralFaceSwapProcessor:
                     allowed_modules=["detection", "recognition"],
                     providers=providers,
                 )
-                det_size = max(320, min(1024, int(os.getenv("AI_FACE_DETECT_SIZE", "640"))))
+                det_size = max(320, min(1024, int(os.getenv("AI_FACE_DETECT_SIZE", "320"))))
                 analyser.prepare(ctx_id=-1, det_thresh=0.35, det_size=(det_size, det_size))
                 swapper = get_model(str(self.model_path), providers=providers)
                 if swapper is None:
@@ -756,7 +762,8 @@ class NeuralFaceSwapProcessor:
             donor = cv2.imread(str(face_path), cv2.IMREAD_COLOR)
             if donor is None:
                 raise ValueError(f"Replacement face {index + 1} could not be decoded.")
-            donor = limit_bgr_edge(donor, 1024)
+            max_image_edge = max(512, min(1536, int(os.getenv("AI_FACE_MAX_IMAGE_EDGE", "1024"))))
+            donor = limit_bgr_edge(donor, max_image_edge)
             donor_faces.append(self._resolve_donor_face(face_analyser, donor))
         if not donor_faces:
             raise ValueError("At least one replacement face image is required.")

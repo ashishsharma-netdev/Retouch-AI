@@ -71,7 +71,9 @@ The backend is designed to run as a single lightweight Render Free web service. 
 
 - Expect a cold-start delay when the service wakes.
 - Avoid deploying a separate worker or Redis requirement on the Free plan.
-- Keep processing requests modest; large video jobs may exceed free-instance memory or CPU limits.\n- Video processing defaults to a 120-second maximum (`AI_FACE_MAX_VIDEO_SECONDS=120`); trim longer clips before upload.\n- GIF processing defaults to a 120-frame maximum (`AI_FACE_MAX_GIF_FRAMES=120`) to bound memory use while frames are accumulated for output.\n- Detector input size defaults to 640 (`AI_FACE_DETECT_SIZE=640`); configure between 320 and 1024 to trade detection speed against accuracy.
+- Keep processing requests modest; large video jobs may exceed free-instance memory or CPU limits.\n- Video processing defaults to a 120-second maximum (`AI_FACE_MAX_VIDEO_SECONDS=120`); trim longer clips before upload.\n- GIF processing defaults to a 120-frame maximum (`AI_FACE_MAX_GIF_FRAMES=120`) to bound memory use while frames are accumulated for output.\n- Detector input size defaults to 320 (`AI_FACE_DETECT_SIZE=320`); configure between 320 and 1024 to trade detection speed against accuracy. The smaller default is intended for Render Free CPU/memory limits.
+- Static image source and donor inputs are capped to a configurable edge (`AI_FACE_MAX_IMAGE_EDGE=1024`, bounded 512–1536) before neural processing to limit memory use.
+- Neural swap failures do not silently produce a low-quality compositor output by default. Set `AI_FACE_ALLOW_COMPOSITOR_FALLBACK=true` only to explicitly allow the non-neural fallback. The fallback is not a true AI face swap.
 - Set `AI_FACE_BACKEND_TOKEN` in Render environment variables to enable API token validation.
 - Use a real HTTPS Render URL in the release build configuration before publishing.
 
