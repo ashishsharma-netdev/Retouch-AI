@@ -206,7 +206,9 @@ def run_processing_job(
     acquired = False
     try:
         update_job(project_id, status="queued", progress=10, status_message="Waiting for available processing slot")
-        processing_slots.acquire()
+        while not processing_slots.acquire(timeout=1):
+            if is_job_canceled(project_id):
+                raise ProcessingCanceled("Processing canceled.")
         acquired = True
         if is_job_canceled(project_id):
             raise ProcessingCanceled("Processing canceled.")
