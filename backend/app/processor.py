@@ -136,7 +136,8 @@ class ImageFaceProcessor:
         return detect_source_faces_with_haar(source_path)
 
     def engine_status(self) -> dict[str, str | bool]:
-        model_path = resolve_swapper_model_path()
+        # Health polling must not trigger a large model download on Render Free.
+        model_path = resolve_swapper_model_path(provision=False)
         return {
             "neuralAvailable": model_path is not None,
             "swapperModel": str(model_path) if model_path else "",
@@ -826,7 +827,7 @@ def provision_swapper_model(root: Path) -> Path | None:
         raise
 
 
-def resolve_swapper_model_path() -> Path | None:
+def resolve_swapper_model_path(provision: bool = True) -> Path | None:
     configured = os.getenv("AI_FACE_SWAPPER_MODEL")
     candidates = []
     if configured:
@@ -843,7 +844,7 @@ def resolve_swapper_model_path() -> Path | None:
     for candidate in candidates:
         if candidate.exists() and candidate.is_file():
             return candidate
-    return provision_swapper_model(root)
+    return provision_swapper_model(root) if provision else None
 
 
 def runtime_backend_root() -> Path:
