@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import os
 import sys
+import tempfile
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
@@ -783,6 +786,46 @@ def model_root() -> Path:
     return Path(os.getenv("AI_FACE_MODEL_ROOT", default_root)).expanduser()
 
 
+
+
+def provision_swapper_model(root: Path) -> Path | None:
+    url = os.getenv('AI_FACE_SWAPPER_MODEL_URL', '').strip()
+    expected = os.getenv('AI_FACE_SWAPPER_MODEL_SHA256', '').strip().lower()
+    if not url or not expected:
+        return None
+    if not url.startswith('https://') or len(expected) != 64 or any(ch not in '0123456789abcdef' for ch in expected):
+        raise ValueError('Configure an HTTPS model URL and valid SHA-256 checksum.')
+    destination = root / 'models' / 'inswapper_128.onnx'
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    cap = max(1, int(os.getenv('AI_FACE_MODEL_DOWNLOAD_MAX_MB', '350'))) * 1024 * 1024
+    timeout = max(5, min(120, int(os.getenv('AI_FACE_MODEL_DOWNLOAD_TIMEOUT', '30'))))
+    tmp = None
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        request = urllib.request.Request(url, headers={'User-Agent': 'Retouch-AI/1.0'})
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            with tempfile.NamedTemporaryFile(dir=str(destination.parent), prefix='.model-', suffix='.tmp', delete=False) as handle:
+                tmp = Path(handle.name)
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > cap:
+                        raise ValueError('Model download exceeds configured size cap.')
+                    digest.update(chunk)
+                    handle.write(chunk)
+        if digest.hexdigest() != expected:
+            raise ValueError('Model SHA-256 verification failed.')
+        tmp.replace(destination)
+        return destination
+    except Exception:
+        if tmp is not None:
+            tmp.unlink(missing_ok=True)
+        raise
+
+
 def resolve_swapper_model_path() -> Path | None:
     configured = os.getenv("AI_FACE_SWAPPER_MODEL")
     candidates = []
@@ -800,7 +843,7 @@ def resolve_swapper_model_path() -> Path | None:
     for candidate in candidates:
         if candidate.exists() and candidate.is_file():
             return candidate
-    return None
+    return provision_swapper_model(root)
 
 
 def runtime_backend_root() -> Path:
