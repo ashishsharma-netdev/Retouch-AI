@@ -74,3 +74,11 @@ The backend is designed to run as a single lightweight Render Free web service. 
 - Keep processing requests modest; large video jobs may exceed free-instance memory or CPU limits.
 - Set `AI_FACE_BACKEND_TOKEN` in Render environment variables to enable API token validation.
 - Use a real HTTPS Render URL in the release build configuration before publishing.
+
+### Backend queue and resource controls
+
+- Processing concurrency defaults to **1 job at a time** (`AI_FACE_MAX_CONCURRENT_JOBS=1`) to reduce peak memory/CPU usage on Render Free.
+- The queue defaults to a maximum of **3 active or queued jobs** (`AI_FACE_MAX_QUEUED_JOBS=3`). Excess submissions receive HTTP 503 and can retry later.
+- Jobs waiting for a processing slot remain cancellable.
+- Uploaded source and donor-face files are removed after processing finishes or fails. Generated result files remain available until the instance restarts or storage is otherwise cleared.
+- Failed jobs return a generic client-facing error instead of exposing internal exception details.
