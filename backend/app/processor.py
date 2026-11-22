@@ -46,7 +46,29 @@ class DetectedSourceFace:
     preview_data_url: str
 
 
-class ImageFaceProcessor:
+
+
+def process_memory_snapshot() -> dict[str, int | None]:
+    """Best-effort process/system memory snapshot without third-party dependencies."""
+    rss_kb = None
+    available_kb = None
+    try:
+        for line in Path("/proc/self/status").read_text(encoding="utf-8").splitlines():
+            if line.startswith("VmRSS:"):
+                rss_kb = int(line.split()[1])
+                break
+    except (OSError, ValueError, IndexError):
+        pass
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
+            if line.startswith("MemAvailable:"):
+                available_kb = int(line.split()[1])
+                break
+    except (OSError, ValueError, IndexError):
+        pass
+    return {"processRssKb": rss_kb, "systemAvailableKb": available_kb}
+
+\nclass ImageFaceProcessor:
     """Image engine used by the backend.
 
     If an InsightFace/ONNX swapper model is installed, this class uses the
@@ -133,8 +155,9 @@ class ImageFaceProcessor:
         return detect_source_faces_with_haar(source_path)
 
     def engine_status(self) -> dict[str, str | bool]:
-        model_path = resolve_swapper_model_path()
+        model_path = resolve_swapper_model_path(provision=False)
         return {
+            "memory": process_memory_snapshot(),
             "neuralAvailable": model_path is not None,
             "swapperModel": str(model_path) if model_path else "",
             "detectorPack": os.getenv("AI_FACE_DETECTOR_PACK", "buffalo_l"),
