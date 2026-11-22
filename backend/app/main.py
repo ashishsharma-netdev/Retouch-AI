@@ -72,7 +72,9 @@ def verify_auth(authorization: str | None = Header(default=None)) -> None:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "processor": processor.engine_status()}
+    with jobs_lock:
+        job_counts = {status: sum(1 for job in jobs.values() if job.status == status) for status in ("queued", "processing", "completed", "failed", "canceled")}
+    return {"status": "ok", "processor": processor.engine_status(), "jobs": job_counts, "queueCapacity": MAX_QUEUED_JOBS, "processingConcurrency": MAX_CONCURRENT_JOBS}
 
 
 @app.post("/v1/projects", response_model=ProcessingJobResponse, dependencies=[Depends(verify_auth)])
