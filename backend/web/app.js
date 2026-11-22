@@ -41,6 +41,7 @@ const workflows = {
 const els = {
   healthDot: document.getElementById("healthDot"),
   healthText: document.getElementById("healthText"),
+  modelNotice: document.getElementById("modelNotice"),
   modeButtons: [...document.querySelectorAll(".mode")],
   sourceDrop: document.getElementById("sourceDrop"),
   faceDrop: document.getElementById("faceDrop"),
@@ -349,11 +350,23 @@ async function checkHealth() {
   try {
     const response = await fetch(apiUrl("/health"));
     const data = await parseJsonResponse(response);
-    els.healthDot.className = `dot ${data.processor?.neuralAvailable ? "ok" : "bad"}`;
-    els.healthText.textContent = data.processor?.neuralAvailable ? "Neural backend ready" : "Backend ready";
+    const neuralReady = Boolean(data.processor?.neuralAvailable);
+    els.healthDot.className = `dot ${neuralReady ? "ok" : "bad"}`;
+    els.healthText.textContent = neuralReady ? "Neural backend ready" : "Backend online; AI model missing";
+    els.modelNotice.hidden = neuralReady;
+    if (!neuralReady) {
+      els.modelNotice.textContent = "The backend is online, but the neural face-swap model (inswapper_128.onnx) is not installed. Processing is unavailable until the model is provisioned. This Render Free instance is not downloading a large model automatically.";
+      els.startButton.disabled = true;
+    } else {
+      els.modelNotice.textContent = "";
+      els.startButton.disabled = false;
+    }
   } catch {
     els.healthDot.className = "dot bad";
     els.healthText.textContent = "Backend offline";
+    els.modelNotice.hidden = false;
+    els.modelNotice.textContent = "Cannot reach the backend health endpoint. Try refreshing the page."; 
+    els.startButton.disabled = true;
   }
 }
 
