@@ -27,8 +27,9 @@ android {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {
-            buildConfigField("String", "API_BASE_URL", "\"https://api.example.com/\"")
-            isMinifyEnabled = false
+            buildConfigField("String", "API_BASE_URL", "\"${project.findProperty("API_BASE_URL") ?: System.getenv("API_BASE_URL") ?: "https://api.example.com/"}\"")
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
