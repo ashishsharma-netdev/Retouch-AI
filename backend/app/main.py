@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -32,6 +33,8 @@ DEFAULT_STORAGE_ROOT = (
 )
 STORAGE_ROOT = Path(os.getenv("AI_FACE_STORAGE", DEFAULT_STORAGE_ROOT))
 WEB_ROOT = Path(os.getenv("AI_FACE_WEB_ROOT", BACKEND_ROOT / "web"))
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AI Face Replacement Backend", version="1.0.0")
 cors_origins = [origin.strip() for origin in os.getenv("AI_FACE_CORS_ORIGINS", "").split(",") if origin.strip()]
@@ -265,6 +268,7 @@ def run_processing_job(
     except ProcessingCanceled:
         update_job(project_id, status="canceled", status_message="Canceled")
     except Exception as exc:
+        logger.exception("Processing job %s failed (%s)", project_id, type(exc).__name__)
         update_job(project_id, status="failed", progress=0, status_message="Processing failed", error="Processing failed. Please retry.")
     finally:
         for path in [source_path, *face_paths]:
